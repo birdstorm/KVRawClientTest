@@ -1,13 +1,14 @@
-
 package com.pingcap.tikv;
 
+import com.flipkart.lois.channel.api.Channel;
+import com.flipkart.lois.channel.exceptions.ChannelClosedException;
+import com.flipkart.lois.channel.impl.BufferedChannel;
 import com.pingcap.tikv.kvproto.Kvrpcpb;
 import org.apache.log4j.Logger;
 import shade.com.google.protobuf.ByteString;
 
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.*;
 
 public class Main {
   private static final String PD_ADDRESS = "127.0.0.1:2379";
@@ -16,6 +17,7 @@ public class Main {
   private static final int NUM_DOCUMENTS = 100;
   private static final int NUM_READERS = 1;
   private static final int NUM_WRITERS = 32;
+  private static final Logger logger = Logger.getLogger("Main");
 
   private static List<Kvrpcpb.KvPair> scan(KVRawClient client, String collection) {
     return client.scan(ByteString.copyFromUtf8(collection), 100);
@@ -46,21 +48,23 @@ public class Main {
   }
 
   public static void main(String[] args) {
-    Logger logger = Logger.getLogger("Main");
 
-    BlockingQueue<Long> readTimes = new LinkedBlockingDeque<>(NUM_READERS * 10);
-    BlockingQueue<Long> writeTimes = new LinkedBlockingDeque<>(NUM_WRITERS * 10);
+    Channel<Long> readTimes = new BufferedChannel<>(NUM_READERS * 10);
+    Channel<Long> writeTimes = new BufferedChannel<>(NUM_WRITERS * 10);
 
-    BlockingQueue<ReadAction> readActions = new LinkedBlockingDeque<>(NUM_READERS * 10);
-    BlockingQueue<WriteAction> writeActions = new LinkedBlockingDeque<>(NUM_WRITERS * 10);
+    Channel<ReadAction> readActions = new BufferedChannel<>(NUM_READERS * 10);
+    Channel<WriteAction> writeActions = new BufferedChannel<>(NUM_WRITERS * 10);
 
     new Thread(() -> {
       Random rand = new Random(System.nanoTime());
       while (true) {
         try {
-          readActions.put(new ReadAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS))));
+          readActions.send(new ReadAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS))));
         } catch (InterruptedException e) {
           logger.warn("ReadAction Interrupted");
+          return;
+        } catch (ChannelClosedException e) {
+          logger.warn("Channel has closed");
           return;
         }
       }
@@ -70,16 +74,19 @@ public class Main {
       Random rand = new Random(System.nanoTime());
       while (true) {
         try {
-          writeActions.put(new WriteAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS)), String.format("%d", rand.nextInt(NUM_DOCUMENTS)), makeTerm(rand, DOCUMENT_SIZE)));
+          writeActions.send(new WriteAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS)), String.format("%d", rand.nextInt(NUM_DOCUMENTS)), makeTerm(rand, DOCUMENT_SIZE)));
         } catch (InterruptedException e) {
           logger.warn("ReadAction Interrupted");
+          return;
+        } catch (ChannelClosedException e) {
+          logger.warn("Channel has closed");
           return;
         }
       }
     }).start();
 
 
-    for (int i = 0; i < NUM_WRITERS; i ++) {
+    for (int i = 0; i < NUM_WRITERS; i++) {
       KVRawClient client;
       try {
         client = KVRawClient.create(PD_ADDRESS);
@@ -90,7 +97,7 @@ public class Main {
       runWrite(client, writeActions, writeTimes);
     }
 
-    for (int i = 0; i < NUM_READERS; i ++) {
+    for (int i = 0; i < NUM_READERS; i++) {
       KVRawClient client;
       try {
         client = KVRawClient.create(PD_ADDRESS);
@@ -105,37 +112,52 @@ public class Main {
     analyze("W", writeTimes);
 
     System.out.println("Hello World!");
-    while(true);
+    while (true) ;
   }
 
-  private static void runWrite(KVRawClient client, BlockingQueue<WriteAction> action, BlockingQueue<Long> timings) {
+  private static void resolve(Channel<Long> timings, long start) {
+    try {
+      timings.send(System.nanoTime() - start);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      System.out.println("Current thread interrupted. Test fail.");
+    } catch (ChannelClosedException e) {
+      logger.warn("Channel has closed");
+    }
+  }
+
+  private static void runWrite(KVRawClient client, Channel<WriteAction> action, Channel<Long> timings) {
     new Thread(() -> {
       WriteAction writeAction;
-      while ((writeAction = action.poll()) != null) {
-        long start = System.nanoTime();
-        put(client, writeAction.collection, writeAction.key, writeAction.value);
-        try {
-          timings.put(System.nanoTime() - start);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          System.out.println("Current thread interrupted. Test fail.");
+      try {
+        while ((writeAction = action.receive()) != null) {
+          long start = System.nanoTime();
+          put(client, writeAction.collection, writeAction.key, writeAction.value);
+          resolve(timings, start);
         }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        System.out.println("Current thread interrupted. Test fail.");
+      } catch (ChannelClosedException e) {
+        logger.warn("Channel has closed");
       }
     }).start();
   }
 
-  private static void runRead(KVRawClient client, BlockingQueue<ReadAction> action, BlockingQueue<Long> timings) {
+  private static void runRead(KVRawClient client, Channel<ReadAction> action, Channel<Long> timings) {
     new Thread(() -> {
       ReadAction readAction;
-      while ((readAction = action.poll()) != null) {
-        long start = System.nanoTime();
-        scan(client, readAction.collection);
-        try {
-          timings.put(System.nanoTime() - start);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          System.out.println("Current thread interrupted. Test fail.");
+      try {
+        while ((readAction = action.receive()) != null) {
+          long start = System.nanoTime();
+          scan(client, readAction.collection);
+          resolve(timings, start);
         }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        System.out.println("Current thread interrupted. Test fail.");
+      } catch (ChannelClosedException e) {
+        logger.warn("Channel has closed");
       }
     }).start();
   }
@@ -150,7 +172,7 @@ public class Main {
     return String.valueOf(b);
   }
 
-  private static void analyze(String label, BlockingQueue<Long> queue) {
+  private static void analyze(String label, Channel<Long> queue) {
     new Thread(() -> {
       long start = System.currentTimeMillis(), end;
       long total = 0;
@@ -158,11 +180,14 @@ public class Main {
       System.out.println("start label " + label);
       while (true) {
         try {
-          total += queue.take() / 1000;
+          total += queue.receive() / 1000;
           count++;
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           System.out.println("Current thread interrupted. Test fail.");
+        } catch (ChannelClosedException e) {
+          logger.warn("Channel has closed");
+          return;
         }
         end = System.currentTimeMillis();
         if (end - start > 1000) {
