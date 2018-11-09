@@ -19,11 +19,11 @@ public class Main {
   private static final int NUM_WRITERS = 32;
   private static final Logger logger = Logger.getLogger("Main");
 
-  private static List<Kvrpcpb.KvPair> scan(KVRawClient client, String collection) {
+  private static List<Kvrpcpb.KvPair> scan(RawKVClient client, String collection) {
     return client.scan(ByteString.copyFromUtf8(collection), 100);
   }
 
-  private static void put(KVRawClient client, String collection, String key, String value) {
+  private static void put(RawKVClient client, String collection, String key, String value) {
     client.put(ByteString.copyFromUtf8(String.format("%s#%s", collection, key)), ByteString.copyFromUtf8(value));
   }
 
@@ -76,7 +76,7 @@ public class Main {
         try {
           writeActions.send(new WriteAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS)), String.format("%d", rand.nextInt(NUM_DOCUMENTS)), makeTerm(rand, DOCUMENT_SIZE)));
         } catch (InterruptedException e) {
-          logger.warn("ReadAction Interrupted");
+          logger.warn("WriteAction Interrupted");
           return;
         } catch (ChannelClosedException e) {
           logger.warn("Channel has closed");
@@ -87,9 +87,9 @@ public class Main {
 
 
     for (int i = 0; i < NUM_WRITERS; i++) {
-      KVRawClient client;
+      RawKVClient client;
       try {
-        client = KVRawClient.create(PD_ADDRESS);
+        client = RawKVClient.create(PD_ADDRESS);
       } catch (Exception e) {
         logger.fatal("error connecting to kv store: ", e);
         continue;
@@ -98,9 +98,9 @@ public class Main {
     }
 
     for (int i = 0; i < NUM_READERS; i++) {
-      KVRawClient client;
+      RawKVClient client;
       try {
-        client = KVRawClient.create(PD_ADDRESS);
+        client = RawKVClient.create(PD_ADDRESS);
       } catch (Exception e) {
         logger.fatal("error connecting to kv store: ", e);
         continue;
@@ -126,7 +126,7 @@ public class Main {
     }
   }
 
-  private static void runWrite(KVRawClient client, Channel<WriteAction> action, Channel<Long> timings) {
+  private static void runWrite(RawKVClient client, Channel<WriteAction> action, Channel<Long> timings) {
     new Thread(() -> {
       WriteAction writeAction;
       try {
@@ -144,7 +144,7 @@ public class Main {
     }).start();
   }
 
-  private static void runRead(KVRawClient client, Channel<ReadAction> action, Channel<Long> timings) {
+  private static void runRead(RawKVClient client, Channel<ReadAction> action, Channel<Long> timings) {
     new Thread(() -> {
       ReadAction readAction;
       try {
