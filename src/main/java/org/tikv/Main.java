@@ -1,9 +1,9 @@
-package com.pingcap.tikv;
+package org.tikv;
 
 import com.flipkart.lois.channel.api.Channel;
 import com.flipkart.lois.channel.exceptions.ChannelClosedException;
 import com.flipkart.lois.channel.impl.BufferedChannel;
-import com.pingcap.tikv.kvproto.Kvrpcpb;
+import org.tikv.kvproto.Kvrpcpb;
 import org.apache.log4j.Logger;
 import shade.com.google.protobuf.ByteString;
 
