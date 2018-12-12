@@ -1,4 +1,4 @@
-package org.tikv;
+package org.tikv.raw;
 
 import com.flipkart.lois.channel.api.Channel;
 import com.flipkart.lois.channel.exceptions.ChannelClosedException;
