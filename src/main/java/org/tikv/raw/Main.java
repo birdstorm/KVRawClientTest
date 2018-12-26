@@ -3,6 +3,7 @@ package org.tikv.raw;
 import com.flipkart.lois.channel.api.Channel;
 import com.flipkart.lois.channel.exceptions.ChannelClosedException;
 import com.flipkart.lois.channel.impl.BufferedChannel;
+import org.apache.log4j.PropertyConfigurator;
 import org.tikv.kvproto.Kvrpcpb;
 import org.apache.log4j.Logger;
 import shade.com.google.protobuf.ByteString;
@@ -55,6 +56,9 @@ public class Main {
 
   public static void main(String[] args) {
 
+    String log4jConfPath = "log4j.properties";
+    PropertyConfigurator.configure(log4jConfPath);
+
 //    Channel<Long> readTimes = new BufferedChannel<>(NUM_READERS * 10);
     Channel<Long> writeTimes = new BufferedChannel<>(NUM_WRITERS * 10);
 
@@ -91,15 +95,15 @@ public class Main {
       }
     }).start();
 
+    RawKVClient client;
+    try {
+      client = RawKVClient.create(PD_ADDRESS);
+    } catch (Exception e) {
+      logger.fatal("error connecting to kv store: ", e);
+      return;
+    }
 
     for (int i = 0; i < NUM_WRITERS; i++) {
-      RawKVClient client;
-      try {
-        client = RawKVClient.create(PD_ADDRESS);
-      } catch (Exception e) {
-        logger.fatal("error connecting to kv store: ", e);
-        continue;
-      }
       runWrite(client, writeActions, writeTimes);
     }
 
