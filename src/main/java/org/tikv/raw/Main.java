@@ -4,6 +4,8 @@ import com.flipkart.lois.channel.api.Channel;
 import com.flipkart.lois.channel.exceptions.ChannelClosedException;
 import com.flipkart.lois.channel.impl.BufferedChannel;
 import org.apache.log4j.PropertyConfigurator;
+import org.tikv.common.TiConfiguration;
+import org.tikv.common.TiSession;
 import org.tikv.kvproto.Kvrpcpb;
 import org.apache.log4j.Logger;
 import shade.com.google.protobuf.ByteString;
@@ -15,11 +17,13 @@ import java.util.Random;
 
 public class Main {
   private static final String PD_ADDRESS = "127.0.0.1:2379";
-  private static final int DOCUMENT_SIZE = 1 << 10;
+  private static final int DOCUMENT_SIZE = 10;
   private static final int NUM_COLLECTIONS = 10;
   private static final int NUM_DOCUMENTS = 100;
   private static final int NUM_READERS = 1;
-  private static final int NUM_WRITERS = 32;
+  private static final int NUM_WRITERS = 2;
+  private static final int NUM_GENS = 5;
+  private static final Clock CLOCK = Clock.CLOCK;
   private static final Logger logger = Logger.getLogger("Main");
 
 //  private static List<Kvrpcpb.KvPair> scan(RawKVClient client, String collection) {
@@ -56,8 +60,8 @@ public class Main {
 
   public static void main(String[] args) {
 
-    String log4jConfPath = "log4j.properties";
-    PropertyConfigurator.configure(log4jConfPath);
+//    String log4jConfPath = "./log4j.properties";
+//    PropertyConfigurator.configure(log4jConfPath);
 
 //    Channel<Long> readTimes = new BufferedChannel<>(NUM_READERS * 10);
     Channel<Long> writeTimes = new BufferedChannel<>(NUM_WRITERS * 10);
@@ -80,31 +84,32 @@ public class Main {
 //      }
 //    }).start();
 
-    new Thread(() -> {
-      Random rand = new Random(System.nanoTime());
-      while (true) {
-        try {
-          writeActions.send(new WriteAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS)), String.format("%d", rand.nextInt(NUM_DOCUMENTS)), makeTerm(rand, DOCUMENT_SIZE)));
-        } catch (InterruptedException e) {
-          logger.warn("WriteAction Interrupted");
-          return;
-        } catch (ChannelClosedException e) {
-          logger.warn("Channel has closed");
-          return;
+    for (int i = 0; i < NUM_GENS; i++) {
+      int index = i;
+      new Thread(() -> {
+        Random rand = new Random(CLOCK.now() + index);
+        while (true) {
+          try {
+            writeActions.send(new WriteAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS)), String.format("%d", rand.nextInt(NUM_DOCUMENTS)), makeTerm(rand, DOCUMENT_SIZE)));
+          } catch (InterruptedException e) {
+            logger.warn("WriteAction Interrupted");
+            return;
+          } catch (ChannelClosedException e) {
+            logger.warn("Channel has closed");
+            return;
+          }
         }
-      }
-    }).start();
-
-    RawKVClient client;
-    try {
-      client = RawKVClient.create(PD_ADDRESS);
-    } catch (Exception e) {
-      logger.fatal("error connecting to kv store: ", e);
-      return;
+      }).start();
     }
 
     for (int i = 0; i < NUM_WRITERS; i++) {
-      runWrite(client, writeActions, writeTimes);
+      try {
+        TiSession session = TiSession.create(TiConfiguration.createRawDefault(PD_ADDRESS));
+        RawKVClient client = session.createRawClient();
+        runWrite(client, writeActions, writeTimes);
+      } catch (Exception e) {
+        logger.fatal("error connecting to kv store: ", e);
+      }
     }
 
 //    for (int i = 0; i < NUM_READERS; i++) {
@@ -127,7 +132,7 @@ public class Main {
 
   private static void resolve(Channel<Long> timings, long start) {
     try {
-      timings.send(System.nanoTime() - start);
+      timings.send(CLOCK.now() - start);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       System.out.println("Current thread interrupted. Test fail.");
@@ -140,12 +145,12 @@ public class Main {
     new Thread(() -> {
       WriteAction writeAction;
       try {
-        Map<ByteString, ByteString> values = new HashMap<>();
         int s = 0, limit = 100;
+        Map<ByteString, ByteString> values = new HashMap<>(limit);
         while ((writeAction = action.receive()) != null) {
-          long start = System.nanoTime();
           put(values, writeAction.collection, writeAction.key, writeAction.value);
           if (s >= limit) {
+            long start = CLOCK.now();
             batchPut(client, values);
             resolve(timings, start);
             values.clear();
@@ -192,9 +197,9 @@ public class Main {
 
   private static void analyze(String label, Channel<Long> queue) {
     new Thread(() -> {
-      long start = System.currentTimeMillis(), end;
-      long total = 0;
-      int count = 0;
+      long start = CLOCK.now(), end;
+      long total = 0, sum = 0;
+      int count = 0, sumCount = 0;
       System.out.println("start label " + label);
       while (true) {
         try {
@@ -207,9 +212,11 @@ public class Main {
           logger.warn("Channel has closed");
           return;
         }
-        end = System.currentTimeMillis();
+        end = CLOCK.now();
         if (end - start > 1000) {
-          System.out.println(String.format("[%s] % 6d total updates, avg = % 9d us\n", label, count, total / count));
+          sum += total;
+          sumCount += count;
+          logger.info(String.format("[%s] % 6d total updates, avg = % 9d us, tot avg = % 9d us\n", label, count, total / count, sum / sumCount));
           total = 0;
           count = 0;
           start = end;
