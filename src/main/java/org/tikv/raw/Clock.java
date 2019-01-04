@@ -7,8 +7,8 @@ class Clock {
 
   private Clock(long rate) {
     this.rate = rate;
-    this.now = System.currentTimeMillis();
-    start();
+    this.now = System.nanoTime();
+//    start();
   }
 
   private void start() {
@@ -20,15 +20,16 @@ class Clock {
         } catch (InterruptedException e) {
           e.printStackTrace();
         }
-        now = System.currentTimeMillis();
+        now = System.nanoTime();
         outdated = true;
       }).start();
     }
   }
 
   long now() {
-    start();
-    return now;
+//    start();
+//    return now;
+    return System.nanoTime();
   }
 
   static final Clock CLOCK = new Clock(10);
