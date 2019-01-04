@@ -16,11 +16,11 @@ import java.util.Random;
 public class Main {
   private static final String PD_ADDRESS = "127.0.0.1:2379";
   private static final int DOCUMENT_SIZE = 10;
-  private static final int NUM_COLLECTIONS = 10;
+  private static final int NUM_COLLECTIONS = 100000000;
   private static final int NUM_DOCUMENTS = 100;
   private static final int NUM_READERS = 1;
-  private static final int NUM_WRITERS = 1;
-  private static final int NUM_GENS = 5;
+  private static final int NUM_WRITERS = 32;
+  private static final int NUM_GENS = 32;
   private static final Clock CLOCK = Clock.CLOCK;
   private static final Logger logger = Logger.getLogger("Main");
 
