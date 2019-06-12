@@ -3,6 +3,8 @@ package org.tikv.raw;
 import com.flipkart.lois.channel.api.Channel;
 import com.flipkart.lois.channel.exceptions.ChannelClosedException;
 import com.flipkart.lois.channel.impl.BufferedChannel;
+import org.tikv.common.TiConfiguration;
+import org.tikv.common.TiSession;
 import org.tikv.kvproto.Kvrpcpb;
 import org.apache.log4j.Logger;
 import shade.com.google.protobuf.ByteString;
@@ -49,6 +51,9 @@ public class Main {
 
   public static void main(String[] args) {
 
+    TiConfiguration conf = TiConfiguration.createRawDefault(PD_ADDRESS);
+    TiSession session = TiSession.create(conf);
+
     Channel<Long> readTimes = new BufferedChannel<>(NUM_READERS * 10);
     Channel<Long> writeTimes = new BufferedChannel<>(NUM_WRITERS * 10);
 
@@ -89,7 +94,7 @@ public class Main {
     for (int i = 0; i < NUM_WRITERS; i++) {
       RawKVClient client;
       try {
-        client = RawKVClient.create(PD_ADDRESS);
+        client = session.createRawClient();
       } catch (Exception e) {
         logger.fatal("error connecting to kv store: ", e);
         continue;
@@ -100,7 +105,7 @@ public class Main {
     for (int i = 0; i < NUM_READERS; i++) {
       RawKVClient client;
       try {
-        client = RawKVClient.create(PD_ADDRESS);
+        client = session.createRawClient();
       } catch (Exception e) {
         logger.fatal("error connecting to kv store: ", e);
         continue;
