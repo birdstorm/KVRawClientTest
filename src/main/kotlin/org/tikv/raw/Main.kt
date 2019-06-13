@@ -20,8 +20,8 @@ private val PD_ADDRESS = "demo-pd-0.demo-pd-peer.tidb.svc:2379"
 private val DOCUMENT_SIZE = 1 shl 10
 private val NUM_COLLECTIONS = 1000_000
 private val NUM_DOCUMENTS = 1000_000
-private val NUM_READERS = 64
-private val NUM_WRITERS = 64
+private val NUM_READERS = 32
+private val NUM_WRITERS = 32
 
 val conf = TiConfiguration.createRawDefault(PD_ADDRESS)
 val session = TiSession.create(conf)
@@ -34,14 +34,14 @@ fun main() = runBlocking {
     val readTimes = Channel<Long>(Channel.UNLIMITED) // unbuffered channel to store all the reading time in nano sec
     val writeTimes = Channel<Long>(Channel.UNLIMITED) // unbuffered channel to store all the writing time in nano sec
 
-    val readActions = produce<ReadAction>(Dispatchers.Default, capacity = NUM_READERS * 100) {
+    val readActions = produce<ReadAction>(Dispatchers.IO, capacity = NUM_READERS * 1000) {
         val rand = Random(System.nanoTime())
         while (true) {
             logger.debug("produce read action ...")
             send(ReadAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS))))
         }
     }
-    val writeActions = produce<WriteAction>(Dispatchers.Default, capacity = NUM_WRITERS * 100) {
+    val writeActions = produce<WriteAction>(Dispatchers.IO, capacity = NUM_WRITERS * 1000) {
         val rand = Random(System.nanoTime())
         while (true) {
             logger.debug("produce write action ...")
