@@ -20,8 +20,8 @@ private val PD_ADDRESS = "demo-pd-0.demo-pd-peer.tidb.svc:2379"
 private val DOCUMENT_SIZE = 1 shl 10
 private val NUM_COLLECTIONS = 1000_000
 private val NUM_DOCUMENTS = 1000_000
-private val NUM_READERS = 2
-private val NUM_WRITERS = 4
+private val NUM_READERS = 8
+private val NUM_WRITERS = 8
 
 val conf = TiConfiguration.createRawDefault(PD_ADDRESS)
 val session = TiSession.create(conf)
@@ -61,10 +61,10 @@ fun main() = runBlocking {
         launchWriter(tiClient, writeActions, writeTimes)
     }
 
-    analyzeTiming("Read", readTimes)
-    analyzeTiming("Write", writeTimes)
+    analyzeTiming("Read", readTimes).join()
+    analyzeTiming("Write", writeTimes).join()
 
-    logger.info("Test started...")
+//    logger.info("Test started...")
 }
 
 fun CoroutineScope.launchReader(
@@ -100,7 +100,7 @@ fun CoroutineScope.launchWriter(
     }
 }
 
-fun CoroutineScope.analyzeTiming(label: String, channel: ReceiveChannel<Long>) = launch(Dispatchers.Default) {
+fun CoroutineScope.analyzeTiming(label: String, channel: ReceiveChannel<Long>) = launch {
     logger.info { "Start analyzing label $label" }
     var startMs = System.currentTimeMillis()
     var endMs: Long
