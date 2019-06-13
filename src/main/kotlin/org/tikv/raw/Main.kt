@@ -20,8 +20,8 @@ private val PD_ADDRESS = "demo-pd-0.demo-pd-peer.tidb.svc:2379"
 private val DOCUMENT_SIZE = 1 shl 10
 private val NUM_COLLECTIONS = 1000_000
 private val NUM_DOCUMENTS = 1000_000
-private val NUM_READERS = 8
-private val NUM_WRITERS = 8
+private val NUM_READERS = 32
+private val NUM_WRITERS = 32
 
 val conf = TiConfiguration.createRawDefault(PD_ADDRESS)
 val session = TiSession.create(conf)
@@ -70,7 +70,7 @@ fun main() = runBlocking {
 fun CoroutineScope.launchReader(
         tiClient: RawKVClient,
         channel: ReceiveChannel<ReadAction>,
-        timingChannel: SendChannel<Long>) = launch(Dispatchers.Default) {
+        timingChannel: SendChannel<Long>) = launch(Dispatchers.IO) {
     for (readAction in channel) {
         val start = System.nanoTime()
         logger.debug { "scan collection: $readAction.collection" }
@@ -86,7 +86,7 @@ fun CoroutineScope.launchReader(
 fun CoroutineScope.launchWriter(
         tiClient: RawKVClient,
         channel: ReceiveChannel<WriteAction>,
-        timingChannel: SendChannel<Long>) = launch(Dispatchers.Default) {
+        timingChannel: SendChannel<Long>) = launch(Dispatchers.IO) {
     for (writeAction in channel) {
         logger.debug { "put key: $writeAction.collection#$writeAction.key" }
         val start = System.nanoTime()
