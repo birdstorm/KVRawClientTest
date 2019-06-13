@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kvrawclienttest
+spec:
+  selector:
+    matchLabels:
+      app: kvrawclienttest
+  template:
+    metadata:
+      labels:
+        app: kvrawclienttest
+    spec:
+      volumes:
+        - name: google-cloud-key
+          secret:
+            secretName: tidb-bt-key
+      containers:
+        - name: kvrawclienttest
+          image: liufuyang/kvrawclienttest:bigtable2
+          volumeMounts:
+            - name: google-cloud-key
+              mountPath: /var/secrets/google
+          env:
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/secrets/google/credentials.json
+      nodeSelector:
+        "kubernetes.io/hostname": "gke-tidb-pool-1-60d488aa-kk1v"
