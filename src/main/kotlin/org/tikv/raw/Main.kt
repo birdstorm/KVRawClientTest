@@ -16,12 +16,12 @@ import java.util.*
 
 private val logger = KotlinLogging.logger {}
 
-private val PD_ADDRESS = "127.0.0.1:2379"
+private val PD_ADDRESS = "demo-pd-0.demo-pd-peer.tidb.svc:2379"
 private val DOCUMENT_SIZE = 1 shl 10
 private val NUM_COLLECTIONS = 1000_000
 private val NUM_DOCUMENTS = 1000_000
-private val NUM_READERS = 16
-private val NUM_WRITERS = 32
+private val NUM_READERS = 2
+private val NUM_WRITERS = 4
 
 val conf = TiConfiguration.createRawDefault(PD_ADDRESS)
 val session = TiSession.create(conf)
@@ -31,17 +31,17 @@ data class WriteAction(val collection: String, val key: String, val value: Strin
 
 fun main() = runBlocking {
 
-    val readTimes = Channel<Long>(NUM_READERS * 10) // buffered channel to store all the reading time in nano sec
-    val writeTimes = Channel<Long>(NUM_WRITERS * 10) // buffered channel to store all the writing time in nano sec
+    val readTimes = Channel<Long>(Channel.UNLIMITED) // unbuffered channel to store all the reading time in nano sec
+    val writeTimes = Channel<Long>(Channel.UNLIMITED) // unbuffered channel to store all the writing time in nano sec
 
-    val readActions = produce<ReadAction>(capacity = NUM_READERS * 10) {
+    val readActions = produce<ReadAction>(Dispatchers.Default, capacity = NUM_READERS * 100) {
         val rand = Random(System.nanoTime())
         while (true) {
             logger.debug("produce read action ...")
             send(ReadAction(String.format("collection-%d", rand.nextInt(NUM_COLLECTIONS))))
         }
     }
-    val writeActions = produce<WriteAction>(capacity = NUM_WRITERS * 10) {
+    val writeActions = produce<WriteAction>(Dispatchers.Default, capacity = NUM_WRITERS * 100) {
         val rand = Random(System.nanoTime())
         while (true) {
             logger.debug("produce write action ...")
