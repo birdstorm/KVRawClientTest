@@ -17,7 +17,7 @@ public class Main {
   private static final int DOCUMENT_SIZE = 1 << 10;
   private static final int NUM_COLLECTIONS = 1000_000;
   private static final int NUM_DOCUMENTS = 1000_000;
-  private static final int NUM_READERS = 4;
+  private static final int NUM_READERS = 8;
   private static final int NUM_WRITERS = 8;
   private static final Logger logger = Logger.getLogger("Main");
 
