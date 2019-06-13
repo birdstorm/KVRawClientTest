@@ -20,8 +20,8 @@ private val PD_ADDRESS = "demo-pd-0.demo-pd-peer.tidb.svc:2379"
 private val DOCUMENT_SIZE = 1 shl 10
 private val NUM_COLLECTIONS = 1000_000
 private val NUM_DOCUMENTS = 1000_000
-private val NUM_READERS = 32
-private val NUM_WRITERS = 32
+private val NUM_READERS = 64
+private val NUM_WRITERS = 64
 
 val conf = TiConfiguration.createRawDefault(PD_ADDRESS)
 val session = TiSession.create(conf)
