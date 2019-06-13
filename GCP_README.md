@@ -31,6 +31,9 @@ kubectl port-forward demo-monitor-5ddb4bf8c-lkkwc 3000 -n tidb
 ## Run test docker in GCP k8s
 
 ```
-kubectl run -it --rm --restart=Never kvrawclienttest --image=liufuyang/kvrawclienttest sh -n tidb \
-  --overrides='{ "apiVersion": "v1", "spec": { "nodeSelector": { "kubernetes.io/hostname": "gke-tidb-pool-1-60d488aa-kk1v" } } }'
+kubectl run -it --rm --restart=Never kvrawclienttest --image=liufuyang/kvrawclienttest:tikv sh -n tidb \
+  --overrides='{ "apiVersion": "v1", "spec": { "nodeSelector": { "kubernetes.io/hostname": "gke-tidb-pool-1-60d488aa-v256" } } }'
+
+# for test big table
+kubectl run -it --rm --restart=Never kvrawclienttest --image=liufuyang/kvrawclienttest:bt sh -n tidb   --overrides='{ "apiVersion": "v1", "spec": { "nodeSelector": { "kubernetes.io/hostname": "gke-tidb-pool-1-60d488aa-kk1v" } } }'
 ```
