@@ -61,7 +61,7 @@ fun main() = runBlocking {
         launchWriter(tiClient, writeActions, writeTimes)
     }
 
-    analyzeTiming("Read", readTimes).join()
+    analyzeTiming("Read", readTimes)
     analyzeTiming("Write", writeTimes).join()
 
 //    logger.info("Test started...")

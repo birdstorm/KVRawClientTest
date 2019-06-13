@@ -2,4 +2,4 @@
 
 mvn clean package
 
-docker build -t liufuyang/kvrawclienttest .
+docker build -t liufuyang/kvrawclienttest:kotlin .
