@@ -13,12 +13,12 @@ import java.util.List;
 import java.util.Random;
 
 public class Main {
-  private static final String PD_ADDRESS = "127.0.0.1:2379";
+  private static final String PD_ADDRESS = "demo-pd-0.demo-pd-peer.tidb.svc:2379";
   private static final int DOCUMENT_SIZE = 1 << 10;
-  private static final int NUM_COLLECTIONS = 10;
-  private static final int NUM_DOCUMENTS = 100;
-  private static final int NUM_READERS = 1;
-  private static final int NUM_WRITERS = 32;
+  private static final int NUM_COLLECTIONS = 1000_000;
+  private static final int NUM_DOCUMENTS = 1000_000;
+  private static final int NUM_READERS = 4;
+  private static final int NUM_WRITERS = 8;
   private static final Logger logger = Logger.getLogger("Main");
 
   private static List<Kvrpcpb.KvPair> scan(RawKVClient client, String collection) {
