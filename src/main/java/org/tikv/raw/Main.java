@@ -3,11 +3,16 @@ package org.tikv.raw;
 import com.flipkart.lois.channel.api.Channel;
 import com.flipkart.lois.channel.exceptions.ChannelClosedException;
 import com.flipkart.lois.channel.impl.BufferedChannel;
-import org.tikv.common.TiConfiguration;
-import org.tikv.common.TiSession;
-import org.tikv.kvproto.Kvrpcpb;
-import org.apache.log4j.Logger;
-import shade.com.google.protobuf.ByteString;
+import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
+import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest;
+import com.google.cloud.bigtable.data.v2.models.Query;
+import com.google.cloud.bigtable.data.v2.models.Row;
+import com.google.cloud.bigtable.data.v2.models.RowMutation;
+import com.google.common.collect.Lists;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 
 import java.util.List;
 import java.util.Random;
@@ -17,16 +22,29 @@ public class Main {
   private static final int DOCUMENT_SIZE = 1 << 10;
   private static final int NUM_COLLECTIONS = 1000_000;
   private static final int NUM_DOCUMENTS = 1000_000;
-  private static final int NUM_READERS = 4;
+  private static final int NUM_READERS = 8;
   private static final int NUM_WRITERS = 8;
-  private static final Logger logger = Logger.getLogger("Main");
+  private static final Logger logger = LoggerFactory.getLogger("Main");
 
-  private static List<Kvrpcpb.KvPair> scan(RawKVClient client, String collection) {
-    return client.scan(ByteString.copyFromUtf8(collection), 100);
+
+  private static final String PROJECT_ID = "golden-path-tutorial-6522";
+  private static final String INSTANCE_ID = "fuyang-test";
+
+
+  private static List<Row> scan(BigtableDataClient client, String collection) {
+    Query query = Query.create("test")
+        .range(collection, null)
+        .limit(100);
+
+    return Lists.newArrayList(client.readRows(query));
   }
 
-  private static void put(RawKVClient client, String collection, String key, String value) {
-    client.put(ByteString.copyFromUtf8(String.format("%s#%s", collection, key)), ByteString.copyFromUtf8(value));
+  private static void put(BigtableDataClient client, String collection, String key, String value) {
+
+    RowMutation mutation = RowMutation.create("test", String.format("%s#%s", collection, key));
+    mutation.setCell("c1", "q1", value);
+
+    client.mutateRow(mutation);
   }
 
   private static class ReadAction {
@@ -49,10 +67,22 @@ public class Main {
     }
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
 
-    TiConfiguration conf = TiConfiguration.createRawDefault(PD_ADDRESS);
-    TiSession session = TiSession.create(conf);
+    BigtableTableAdminClient tableAdminClient = BigtableTableAdminClient.create(PROJECT_ID, INSTANCE_ID);
+
+    try {
+      tableAdminClient.createTable(
+          CreateTableRequest.of("test")
+              .addFamily("c1")
+      );
+    } catch (Exception ignored) {
+      logger.info("Table already exist");
+    }
+    finally {
+      tableAdminClient.close();
+    }
+    BigtableDataClient client = BigtableDataClient.create(PROJECT_ID, INSTANCE_ID);
 
     Channel<Long> readTimes = new BufferedChannel<>(NUM_READERS * 10);
     Channel<Long> writeTimes = new BufferedChannel<>(NUM_WRITERS * 10);
@@ -92,24 +122,10 @@ public class Main {
 
 
     for (int i = 0; i < NUM_WRITERS; i++) {
-      RawKVClient client;
-      try {
-        client = session.createRawClient();
-      } catch (Exception e) {
-        logger.fatal("error connecting to kv store: ", e);
-        continue;
-      }
       runWrite(client, writeActions, writeTimes);
     }
 
     for (int i = 0; i < NUM_READERS; i++) {
-      RawKVClient client;
-      try {
-        client = session.createRawClient();
-      } catch (Exception e) {
-        logger.fatal("error connecting to kv store: ", e);
-        continue;
-      }
       runRead(client, readActions, readTimes);
     }
 
@@ -131,7 +147,7 @@ public class Main {
     }
   }
 
-  private static void runWrite(RawKVClient client, Channel<WriteAction> action, Channel<Long> timings) {
+  private static void runWrite(BigtableDataClient client, Channel<WriteAction> action, Channel<Long> timings) {
     new Thread(() -> {
       WriteAction writeAction;
       try {
@@ -149,7 +165,7 @@ public class Main {
     }).start();
   }
 
-  private static void runRead(RawKVClient client, Channel<ReadAction> action, Channel<Long> timings) {
+  private static void runRead(BigtableDataClient client, Channel<ReadAction> action, Channel<Long> timings) {
     new Thread(() -> {
       ReadAction readAction;
       try {
