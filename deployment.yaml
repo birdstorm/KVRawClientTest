@@ -39,8 +39,8 @@ spec:
               topologyKey: "kubernetes.io/hostname"
       containers:
         - name: kvrawclienttest-tikv
-          image: liufuyang/kvrawclienttest:tikv-write-057e7a6
-          # liufuyang/kvrawclienttest:tikv-write-057e7a6
+          image: liufuyang/kvrawclienttest:tikv-read-057e7a6
+          # liufuyang/kvrawclienttest:tikv-read-057e7a6
 
 ---
 apiVersion: apps/v1
@@ -85,4 +85,4 @@ spec:
       containers:
         - name: kvrawclienttest-bigtable
           image: liufuyang/kvrawclienttest:bigtable-write-057e7a6
-          # liufuyang/kvrawclienttest:bigtable-write-057e7a6
+          # liufuyang/kvrawclienttest:bigtable-read-057e7a6
