@@ -13,3 +13,5 @@ class Constants {
         val NUM_WRITERS = 64
     }
 }
+
+fun Long.d(digits: Int) = java.lang.String.format("%${digits}d", this)

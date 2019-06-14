@@ -115,7 +115,7 @@ fun CoroutineScope.launchWriter(
     }
 }
 
-fun CoroutineScope.analyzeTiming(label: String, channel: ReceiveChannel<Long>) = launch {
+private fun CoroutineScope.analyzeTiming(label: String, channel: ReceiveChannel<Long>) = launch {
     logger.info { "Start analyzing label $label" }
     var startMs = System.currentTimeMillis()
     var endMs: Long
@@ -133,8 +133,6 @@ fun CoroutineScope.analyzeTiming(label: String, channel: ReceiveChannel<Long>) =
         }
     }
 }
-
-fun Long.d(digits: Int) = java.lang.String.format("%${digits}d", this)
 
 private val LETTER_BYTES = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray()
 private fun makeTerm(rand: Random, n: Int): String {
