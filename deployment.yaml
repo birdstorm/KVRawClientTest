@@ -39,7 +39,8 @@ spec:
               topologyKey: "kubernetes.io/hostname"
       containers:
         - name: kvrawclienttest-tikv
-          image: liufuyang/kvrawclienttest:tikv-write-a9490e1
+          image: liufuyang/kvrawclienttest:tikv-write-057e7a6
+          # liufuyang/kvrawclienttest:tikv-write-057e7a6
 
 ---
 apiVersion: apps/v1
@@ -83,32 +84,5 @@ spec:
               topologyKey: "kubernetes.io/hostname"
       containers:
         - name: kvrawclienttest-bigtable
-          image: liufuyang/kvrawclienttest:bigtable-write-7c818b3
-
-#apiVersion: apps/v1
-#kind: Deployment
-#metadata:
-#  name: kvrawclienttest
-#spec:
-#  selector:
-#    matchLabels:
-#      app: kvrawclienttest
-#  template:
-#    metadata:
-#      labels:
-#        app: kvrawclienttest
-#    spec:
-#      containers:
-#        - name: kvrawclienttest-tikv
-#          image: liufuyang/kvrawclienttest:kotlin-a64d635
-#          env:
-#            - name: GOOGLE_APPLICATION_CREDENTIALS
-#              value: /app/key.json
-#          affinity:
-#            podAntiAffinity:
-#              requiredDuringSchedulingIgnoredDuringExecution:
-#                - labelSelector:
-#                    matchLabels:
-#                      app.kubernetes.io/component: "tikv"
-#                  topologyKey: "kubernetes.io/hostname"
-#
+          image: liufuyang/kvrawclienttest:bigtable-write-057e7a6
+          # liufuyang/kvrawclienttest:bigtable-write-057e7a6
