@@ -39,7 +39,7 @@ spec:
               topologyKey: "kubernetes.io/hostname"
       containers:
         - name: kvrawclienttest-tikv
-          image: liufuyang/kvrawclienttest:kotlin-a64d635
+          image: liufuyang/kvrawclienttest:tikv-write-a9490e1
 
 ---
 apiVersion: apps/v1
@@ -83,7 +83,7 @@ spec:
               topologyKey: "kubernetes.io/hostname"
       containers:
         - name: kvrawclienttest-bigtable
-          image: liufuyang/kvrawclienttest:bigtable-xxxx
+          image: liufuyang/kvrawclienttest:bigtable-write-7c818b3
 
 #apiVersion: apps/v1
 #kind: Deployment
