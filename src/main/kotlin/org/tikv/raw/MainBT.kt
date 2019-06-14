@@ -4,6 +4,7 @@ import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest
 import com.google.cloud.bigtable.data.v2.BigtableDataClient
 import com.google.cloud.bigtable.data.v2.models.Query
+import com.google.cloud.bigtable.data.v2.models.Row
 import com.google.cloud.bigtable.data.v2.models.RowMutation
 import com.google.common.collect.Lists
 import kotlinx.coroutines.CoroutineScope
@@ -83,12 +84,12 @@ fun CoroutineScope.launchReader(
         timingChannel: SendChannel<Long>) = launch(Dispatchers.IO) {
     for (readAction in channel) {
         val start = System.nanoTime()
-        logger.debug { "scan collection: $readAction.collection" }
+        logger.debug { "scan collection: ${readAction.collection}" }
         try {
             val query = Query.create("test")
                     .range(readAction.collection, null)
                     .limit(SCAN_LIMIT.toLong())
-            Lists.newArrayList(client.readRows(query))
+            val newArrayList: ArrayList<Row> = Lists.newArrayList(client.readRows(query))
         } catch (exeption: Exception) {
             logger.warn { "Scan failed. ${exeption.message}" }
         }
@@ -101,10 +102,10 @@ fun CoroutineScope.launchWriter(
         channel: ReceiveChannel<WriteAction>,
         timingChannel: SendChannel<Long>) = launch(Dispatchers.IO) {
     for (writeAction in channel) {
-        logger.debug { "put key: $writeAction.collection#$writeAction.key" }
+        logger.debug { "put key: ${writeAction.collection}#${writeAction.key}" }
         val start = System.nanoTime()
         try {
-            val mutation = RowMutation.create("test", "$writeAction.collection#$writeAction.key")
+            val mutation = RowMutation.create("test", "${writeAction.collection}#${writeAction.key}")
             mutation.setCell("c1", "q1", writeAction.value)
 
             client.mutateRow(mutation)

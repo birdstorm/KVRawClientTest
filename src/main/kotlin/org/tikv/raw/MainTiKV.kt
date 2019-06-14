@@ -11,6 +11,7 @@ import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import org.tikv.common.TiConfiguration
 import org.tikv.common.TiSession
+import org.tikv.kvproto.Kvrpcpb
 import org.tikv.raw.Constants.Companion.DOCUMENT_SIZE
 import org.tikv.raw.Constants.Companion.NUM_COLLECTIONS
 import org.tikv.raw.Constants.Companion.NUM_DOCUMENTS
@@ -69,9 +70,10 @@ fun CoroutineScope.launchReader(
         timingChannel: SendChannel<Long>) = launch(Dispatchers.IO) {
     for (readAction in channel) {
         val start = System.nanoTime()
-        logger.debug { "scan collection: $readAction.collection" }
+        logger.debug { "scan collection: ${readAction.collection}" }
         try {
-            tiClient.scan(ByteString.copyFromUtf8(readAction.collection), SCAN_LIMIT)
+            val scan: MutableList<Kvrpcpb.KvPair> = tiClient.scan(ByteString.copyFromUtf8(readAction.collection), SCAN_LIMIT)
+            logger.debug { "Scan size: ${scan.size}" }
         } catch (exeption: Exception) {
             logger.warn { "Scan failed. ${exeption.message}" }
         }
@@ -84,10 +86,10 @@ fun CoroutineScope.launchWriter(
         channel: ReceiveChannel<WriteAction>,
         timingChannel: SendChannel<Long>) = launch(Dispatchers.IO) {
     for (writeAction in channel) {
-        logger.debug { "put key: $writeAction.collection#$writeAction.key" }
+        logger.debug { "put key: ${writeAction.collection}#${writeAction.key}" }
         val start = System.nanoTime()
         try {
-            tiClient.put(ByteString.copyFromUtf8("$writeAction.collection#$writeAction.key"),
+            tiClient.put(ByteString.copyFromUtf8("${writeAction.collection}#${writeAction.key}"),
                     ByteString.copyFromUtf8(writeAction.value))
         } catch (exeption: Exception) {
             logger.warn { "Put failed. ${exeption.message}" }
