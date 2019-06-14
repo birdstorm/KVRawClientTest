@@ -1,4 +1,4 @@
-package org.bigtable.raw
+package org.tikv.raw
 
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient
 import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest
@@ -21,8 +21,6 @@ import org.tikv.raw.Constants.Companion.NUM_DOCUMENTS
 import org.tikv.raw.Constants.Companion.NUM_READERS
 import org.tikv.raw.Constants.Companion.NUM_WRITERS
 import org.tikv.raw.Constants.Companion.SCAN_LIMIT
-import org.tikv.raw.ReadAction
-import org.tikv.raw.WriteAction
 import java.util.*
 
 
