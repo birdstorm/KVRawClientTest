@@ -1,5 +1,11 @@
-package org.tikv.raw
+package org.bigtable.raw
 
+import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient
+import com.google.cloud.bigtable.admin.v2.models.CreateTableRequest
+import com.google.cloud.bigtable.data.v2.BigtableDataClient
+import com.google.cloud.bigtable.data.v2.models.Query
+import com.google.cloud.bigtable.data.v2.models.RowMutation
+import com.google.common.collect.Lists
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -9,27 +15,37 @@ import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
-import org.tikv.common.TiConfiguration
-import org.tikv.common.TiSession
-import shade.com.google.protobuf.ByteString
+import org.tikv.raw.Constants.Companion.DOCUMENT_SIZE
+import org.tikv.raw.Constants.Companion.NUM_COLLECTIONS
+import org.tikv.raw.Constants.Companion.NUM_DOCUMENTS
+import org.tikv.raw.Constants.Companion.NUM_READERS
+import org.tikv.raw.Constants.Companion.NUM_WRITERS
+import org.tikv.raw.Constants.Companion.SCAN_LIMIT
+import org.tikv.raw.ReadAction
+import org.tikv.raw.WriteAction
 import java.util.*
+
 
 private val logger = KotlinLogging.logger {}
 
-private val PD_ADDRESS = "demo-pd-0.demo-pd-peer.tidb.svc:2379"
-private val DOCUMENT_SIZE = 1 shl 10
-private val NUM_COLLECTIONS = 1000_000
-private val NUM_DOCUMENTS = 1000_000
-private val NUM_READERS = 32
-private val NUM_WRITERS = 32
-
-val conf = TiConfiguration.createRawDefault(PD_ADDRESS)
-val session = TiSession.create(conf)
-
-data class ReadAction(val collection: String)
-data class WriteAction(val collection: String, val key: String, val value: String)
+private val PROJECT_ID = "golden-path-tutorial-6522"
+private val INSTANCE_ID = "fuyang-test"
 
 fun main() = runBlocking {
+
+    val tableAdminClient = BigtableTableAdminClient.create(PROJECT_ID, INSTANCE_ID)
+    try {
+        tableAdminClient.createTable(
+                CreateTableRequest.of("test")
+                        .addFamily("c1")
+        )
+    } catch (ignored: Exception) {
+        logger.info("Table already exist")
+    } finally {
+        tableAdminClient.close()
+    }
+
+    val client = BigtableDataClient.create(PROJECT_ID, INSTANCE_ID)
 
     val readTimes = Channel<Long>(Channel.UNLIMITED) // unbuffered channel to store all the reading time in nano sec
     val writeTimes = Channel<Long>(Channel.UNLIMITED) // unbuffered channel to store all the writing time in nano sec
@@ -53,29 +69,28 @@ fun main() = runBlocking {
     }
 
     repeat(NUM_READERS) {
-        val tiClient = session.createRawClient()
-        launchReader(tiClient, readActions, readTimes)
+        launchReader(client, readActions, readTimes)
     }
     repeat(NUM_WRITERS) {
-        val tiClient = session.createRawClient()
-        launchWriter(tiClient, writeActions, writeTimes)
+        launchWriter(client, writeActions, writeTimes)
     }
 
-    analyzeTiming("Read", readTimes)
-    analyzeTiming("Write", writeTimes).join()
-
-//    logger.info("Test started...")
+    analyzeTiming("Bigtable Read", readTimes)
+    analyzeTiming("Bigtable Write", writeTimes).join()
 }
 
 fun CoroutineScope.launchReader(
-        tiClient: RawKVClient,
+        client: BigtableDataClient,
         channel: ReceiveChannel<ReadAction>,
         timingChannel: SendChannel<Long>) = launch(Dispatchers.IO) {
     for (readAction in channel) {
         val start = System.nanoTime()
         logger.debug { "scan collection: $readAction.collection" }
         try {
-            tiClient.scan(ByteString.copyFromUtf8(readAction.collection), 100)
+            val query = Query.create("test")
+                    .range(readAction.collection, null)
+                    .limit(SCAN_LIMIT.toLong())
+            Lists.newArrayList(client.readRows(query))
         } catch (exeption: Exception) {
             logger.warn { "Scan failed. ${exeption.message}" }
         }
@@ -84,15 +99,17 @@ fun CoroutineScope.launchReader(
 }
 
 fun CoroutineScope.launchWriter(
-        tiClient: RawKVClient,
+        client: BigtableDataClient,
         channel: ReceiveChannel<WriteAction>,
         timingChannel: SendChannel<Long>) = launch(Dispatchers.IO) {
     for (writeAction in channel) {
         logger.debug { "put key: $writeAction.collection#$writeAction.key" }
         val start = System.nanoTime()
         try {
-            tiClient.put(ByteString.copyFromUtf8("$writeAction.collection#$writeAction.key"),
-                    ByteString.copyFromUtf8(writeAction.value))
+            val mutation = RowMutation.create("test", "$writeAction.collection#$writeAction.key")
+            mutation.setCell("c1", "q1", writeAction.value)
+
+            client.mutateRow(mutation)
         } catch (exeption: Exception) {
             logger.warn { "Put failed. ${exeption.message}" }
         }
