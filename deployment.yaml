@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kvrawclienttest-tikv
+spec:
+  selector:
+    matchLabels:
+      app: kvrawclienttest-tikv
+  replicas: 4
+  template:
+    metadata:
+      labels:
+        app: kvrawclienttest-tikv
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - kvrawclienttest-tikv
+              topologyKey: "kubernetes.io/hostname"
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - kvrawclienttest-bigtable
+              topologyKey: "kubernetes.io/hostname"
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: "tikv"
+              topologyKey: "kubernetes.io/hostname"
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: "pd"
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: kvrawclienttest-tikv
+          image: liufuyang/kvrawclienttest:tikv-read-057e7a6
+          # liufuyang/kvrawclienttest:tikv-read-057e7a6
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kvrawclienttest-bigtable
+spec:
+  selector:
+    matchLabels:
+      app: kvrawclienttest-bigtable
+  replicas: 4
+  template:
+    metadata:
+      labels:
+        app: kvrawclienttest-bigtable
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - kvrawclienttest-bigtable
+              topologyKey: "kubernetes.io/hostname"
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - kvrawclienttest-tikv
+              topologyKey: "kubernetes.io/hostname"
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: "tikv"
+              topologyKey: "kubernetes.io/hostname"
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: "pd"
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: kvrawclienttest-bigtable
+          image: liufuyang/kvrawclienttest:bigtable-write-057e7a6
+          # liufuyang/kvrawclienttest:bigtable-read-057e7a6
