@@ -8,27 +8,29 @@ class Clock {
   private Clock(long rate) {
     this.rate = rate;
     this.now = System.nanoTime();
-//    start();
+    // start();
   }
 
   private void start() {
     if (outdated) {
-      new Thread(() -> {
-        outdated = false;
-        try {
-          Thread.sleep(rate);
-        } catch (InterruptedException e) {
-          e.printStackTrace();
-        }
-        now = System.nanoTime();
-        outdated = true;
-      }).start();
+      new Thread(
+              () -> {
+                outdated = false;
+                try {
+                  Thread.sleep(rate);
+                } catch (InterruptedException e) {
+                  e.printStackTrace();
+                }
+                now = System.nanoTime();
+                outdated = true;
+              })
+          .start();
     }
   }
 
   long now() {
-//    start();
-//    return now;
+    // start();
+    // return now;
     return System.nanoTime();
   }
 
