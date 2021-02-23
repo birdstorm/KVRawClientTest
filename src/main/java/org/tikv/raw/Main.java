@@ -24,6 +24,7 @@ public class Main {
   private static final int NUM_WRITERS = 32;
   private static final int NUM_READ_GENS = 32;
   private static final int NUM_WRITE_GENS = 4;
+  private static final long PUT_TTL = 60;
   private static final Clock CLOCK = Clock.CLOCK;
   private static final Logger logger = Logger.getLogger("Main");
 
@@ -38,8 +39,8 @@ public class Main {
         ByteString.copyFromUtf8(value));
   }
 
-  private static void batchPut(RawKVClient client, Map<ByteString, ByteString> values) {
-    client.batchPut(values);
+  private static void batchPut(RawKVClient client, Map<ByteString, ByteString> values, long ttl) {
+    client.batchPut(values, ttl);
   }
 
   private static List<KvPair> scan(RawKVClient client, String collection, int limit) {
@@ -80,9 +81,11 @@ public class Main {
 
   private static class WriteAction {
     Map<ByteString, ByteString> values;
+    long ttl;
 
-    WriteAction(Map<ByteString, ByteString> values) {
+    WriteAction(Map<ByteString, ByteString> values, long ttl) {
       this.values = values;
+      this.ttl = ttl;
     }
   }
 
@@ -137,7 +140,7 @@ public class Main {
                             String.format("%d", rand.nextInt(NUM_DOCUMENTS)),
                             makeTerm(rand, DOCUMENT_SIZE));
                       }
-                      writeActions.send(new WriteAction(values));
+                      writeActions.send(new WriteAction(values, PUT_TTL));
                     }
                   } catch (InterruptedException e) {
                     logger.warn("WriteAction Interrupted");
@@ -219,7 +222,7 @@ public class Main {
                 try {
                   while ((writeAction = action.receive()) != null) {
                     long start = CLOCK.now();
-                    batchPut(client, writeAction.values);
+                    batchPut(client, writeAction.values, writeAction.ttl);
                     resolve(timings, start);
                   }
                 } catch (InterruptedException e) {
