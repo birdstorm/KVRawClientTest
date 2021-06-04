@@ -16,7 +16,6 @@ import org.tikv.kvproto.Kvrpcpb.KvPair;
 import org.tikv.shade.com.google.protobuf.ByteString;
 
 public class Main {
-  private static final String PD_ADDRESS = "127.0.0.1:2379";
   private static final int DOCUMENT_SIZE = 10;
   private static final int NUM_COLLECTIONS = 100000000;
   private static final int NUM_DOCUMENTS = 100;
@@ -156,7 +155,7 @@ public class Main {
 
     for (int i = 0; i < NUM_READERS; i++) {
       try {
-        TiSession session = TiSession.create(TiConfiguration.createRawDefault(PD_ADDRESS));
+        TiSession session = TiSession.create(TiConfiguration.createRawDefault());
         runRead(session, readActions, readTimes);
       } catch (Exception e) {
         logger.fatal("error connecting to kv store: ", e);
@@ -165,7 +164,7 @@ public class Main {
 
     for (int i = 0; i < NUM_WRITERS; i++) {
       try {
-        TiSession session = TiSession.create(TiConfiguration.createRawDefault(PD_ADDRESS));
+        TiSession session = TiSession.create(TiConfiguration.createRawDefault());
         runWrite(session, writeActions, writeTimes);
       } catch (Exception e) {
         logger.fatal("error connecting to kv store: ", e);
