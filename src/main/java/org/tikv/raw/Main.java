@@ -13,7 +13,7 @@ import org.apache.log4j.PropertyConfigurator;
 import org.tikv.common.TiConfiguration;
 import org.tikv.common.TiSession;
 import org.tikv.kvproto.Kvrpcpb.KvPair;
-import shade.com.google.protobuf.ByteString;
+import org.tikv.shade.com.google.protobuf.ByteString;
 
 public class Main {
   private static final String PD_ADDRESS = "127.0.0.1:2379";
